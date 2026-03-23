@@ -76,7 +76,7 @@ app.get("/api/get-video", async (req, res) => {
     });
 
     // ⏳ chờ JS load
-    await new Promise(r => setTimeout(r, 5000));
+    await new Promise(r => setTimeout(r, 10000));
 
     await browser.close();
 
@@ -94,4 +94,8 @@ app.get("/api/get-video", async (req, res) => {
 
 app.listen(3000, () => {
   console.log("Server running at http://localhost:3000");
+});
+const browser = await puppeteer.launch({
+  headless: true,
+  args: ["--no-sandbox", "--disable-setuid-sandbox"],
 });
