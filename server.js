@@ -36,26 +36,39 @@ app.get("/api/get-video", async (req, res) => {
     });
 
     // 🎯 bắt response API
-    page.on("response", async (response) => {
-      try {
-        const resUrl = response.url();
+   page.on("response", async (response) => {
+  try {
+    const url = response.url();
 
-        if (resUrl.includes("creation") || resUrl.includes("video")) {
-          const text = await response.text();
+    // 🎯 lọc domain đúng của Jimeng
+    if (url.includes("jimeng") || url.includes("jianying")) {
+      const text = await response.text();
 
-          if (text.includes("video_url") || text.includes("download_info")) {
-            const json = JSON.parse(text);
+      if (text.includes("download_info")) {
+        const json = JSON.parse(text);
 
-            const data = json?.data?.page_info?.creation?.metadata;
+        // 🔥 handle nhiều dạng JSON
+        const creation = json?.data?.page_info?.creation;
+        const list = json?.data?.page_info?.creation_list;
 
-            if (data?.download_info?.url) {
-              videoUrl = data.download_info.url;
+        // case 1: single video
+        if (creation?.metadata?.download_info?.url) {
+          videoUrl = creation.metadata.download_info.url;
+        }
+
+        // case 2: list video
+        if (!videoUrl && Array.isArray(list)) {
+          for (const item of list) {
+            if (item?.metadata?.download_info?.url) {
+              videoUrl = item.metadata.download_info.url;
+              break;
             }
           }
         }
-      } catch (e) {}
-    });
-
+      }
+    }
+  } catch (e) {}
+});
     // 🔥 mở link
     await page.goto(url, {
       waitUntil: "networkidle2",
