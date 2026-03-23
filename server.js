@@ -4,9 +4,14 @@ const cors = require("cors");
 
 const app = express();
 app.use(cors());
+app.use(express.json());
 
-app.get("/api/get-video", async (req, res) => {
-  const url = req.query.url;
+app.get("/", (req, res) => {
+  res.send("API đang chạy OK");
+});
+
+app.post("/api/get-video", async (req, res) => {
+  const url = req.body.url;
 
   if (!url) {
     return res.json({ error: "Thiếu URL" });
@@ -21,10 +26,8 @@ app.get("/api/get-video", async (req, res) => {
     });
 
     const page = await browser.newPage();
-
     let videoUrl = null;
 
-    // 🚀 chặn request nặng (tăng tốc)
     await page.setRequestInterception(true);
     page.on("request", (req) => {
       const type = req.resourceType();
@@ -35,48 +38,42 @@ app.get("/api/get-video", async (req, res) => {
       }
     });
 
-    // 🎯 bắt response API
-   page.on("response", async (response) => {
-  try {
-    const url = response.url();
+    page.on("response", async (response) => {
+      try {
+        const resUrl = response.url();
 
-    // 🎯 lọc domain đúng của Jimeng
-    if (url.includes("jimeng") || url.includes("jianying")) {
-      const text = await response.text();
+        if (resUrl.includes("jimeng") || resUrl.includes("jianying")) {
+          const text = await response.text();
 
-      if (text.includes("download_info")) {
-        const json = JSON.parse(text);
+          if (text.includes("download_info")) {
+            const json = JSON.parse(text);
 
-        // 🔥 handle nhiều dạng JSON
-        const creation = json?.data?.page_info?.creation;
-        const list = json?.data?.page_info?.creation_list;
+            const creation = json?.data?.page_info?.creation;
+            const list = json?.data?.page_info?.creation_list;
 
-        // case 1: single video
-        if (creation?.metadata?.download_info?.url) {
-          videoUrl = creation.metadata.download_info.url;
-        }
+            if (creation?.metadata?.download_info?.url) {
+              videoUrl = creation.metadata.download_info.url;
+            }
 
-        // case 2: list video
-        if (!videoUrl && Array.isArray(list)) {
-          for (const item of list) {
-            if (item?.metadata?.download_info?.url) {
-              videoUrl = item.metadata.download_info.url;
-              break;
+            if (!videoUrl && Array.isArray(list)) {
+              for (const item of list) {
+                if (item?.metadata?.download_info?.url) {
+                  videoUrl = item.metadata.download_info.url;
+                  break;
+                }
+              }
             }
           }
         }
-      }
-    }
-  } catch (e) {}
-});
-    // 🔥 mở link
+      } catch {}
+    });
+
     await page.goto(url, {
       waitUntil: "networkidle2",
       timeout: 0
     });
 
-    // ⏳ chờ JS load
-    await new Promise(r => setTimeout(r, 10000));
+    await new Promise(r => setTimeout(r, 8000));
 
     await browser.close();
 
@@ -92,10 +89,7 @@ app.get("/api/get-video", async (req, res) => {
   }
 });
 
-app.listen(3000, () => {
-  console.log("Server running at http://localhost:3000");
-});
-const browser = await puppeteer.launch({
-  headless: true,
-  args: ["--no-sandbox", "--disable-setuid-sandbox"],
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log("Server running on port " + PORT);
 });
