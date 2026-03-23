@@ -10,27 +10,30 @@ app.post("/api/get-video", async (req, res) => {
     try {
         const { url } = req.body;
 
-        const videoId = url.match(/\/s\/(.*?)\//)?.[1];
-
-        if (!videoId) {
-            return res.json({ error: "Sai link" });
-        }
-
-        const apiUrl = `https://jimeng.jianying.com/api/share/info?video_id=${videoId}`;
-
-        const response = await axios.get(apiUrl, {
+        const html = await axios.get(url, {
             headers: {
                 "User-Agent": "Mozilla/5.0",
-                "Referer": "https://jimeng.jianying.com/"
+                "Referer": "https://jimeng.jianying.com/",
+                "Accept-Language": "en-US,en;q=0.9"
             }
         });
 
-        const video =
-            response.data?.data?.page_info?.creation?.metadata?.download_info?.url;
+        const match = html.data.match(/"download_info":\{"url":"(.*?)"/);
+
+        if (!match) {
+            return res.json({ error: "Không tìm thấy video" });
+        }
+
+        let video = match[1];
+
+        video = video
+            .replace(/\\u0026/g, "&")
+            .replace(/\\\//g, "/");
 
         res.json({ video });
 
     } catch (err) {
+        console.log(err.message);
         res.json({ error: "Lỗi server" });
     }
 });
