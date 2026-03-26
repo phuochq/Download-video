@@ -94,3 +94,25 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("Server running on port " + PORT);
 });
+const axios = require("axios");
+
+app.get("/api/download", async (req, res) => {
+  const videoUrl = req.query.url;
+
+  try {
+    const response = await axios({
+      url: videoUrl,
+      method: "GET",
+      responseType: "stream",
+      headers: {
+        "User-Agent": "Mozilla/5.0"
+      }
+    });
+
+    res.setHeader("Content-Disposition", "attachment; filename=video.mp4");
+    response.data.pipe(res);
+
+  } catch (err) {
+    res.status(500).send("Download lỗi");
+  }
+});
