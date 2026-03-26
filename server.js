@@ -1,5 +1,6 @@
 const express = require("express");
-const puppeteer = require("puppeteer");
+const puppeteer = require("puppeteer-core");
+const chromium = require("@sparticuz/chromium");
 const cors = require("cors");
 
 const app = express();
@@ -21,8 +22,9 @@ app.post("/api/get-video", async (req, res) => {
 
   try {
     browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"]
+      rgs: chromium.args,
+  executablePath: await chromium.executablePath(),
+  headless: chromium.headless,
     });
 
     const page = await browser.newPage();
