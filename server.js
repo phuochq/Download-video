@@ -7,7 +7,7 @@ app.use(cors());
 app.use(express.json());
 
 app.get("/", (req, res) => {
-  res.send("API đang chạy OK");
+  res.send("API Puppeteer đang chạy OK");
 });
 
 app.post("/api/get-video", async (req, res) => {
@@ -65,7 +65,7 @@ app.post("/api/get-video", async (req, res) => {
             }
           }
         }
-      } catch {}
+      } catch (e) {}
     });
 
     await page.goto(url, {
@@ -89,7 +89,6 @@ app.post("/api/get-video", async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log("Server running on port " + PORT);
+app.listen(3000, () => {
+  console.log("Server running");
 });
