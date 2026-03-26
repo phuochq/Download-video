@@ -88,7 +88,7 @@ app.post("/api/get-video", async (req, res) => {
     return res.json({ error: err.message });
   }
 });
-
-app.listen(3000, () => {
-  console.log("Server running");
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log("Server running on port " + PORT);
 });
