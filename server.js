@@ -29,7 +29,6 @@ app.post("/api/get-video", async (req, res) => {
 
     let videoUrl = null;
 
-    // 🚀 chặn tài nguyên nặng
     await page.setRequestInterception(true);
     page.on("request", (req) => {
       const type = req.resourceType();
@@ -40,25 +39,16 @@ app.post("/api/get-video", async (req, res) => {
       }
     });
 
-    // 🎯 bắt API response
     page.on("response", async (response) => {
       try {
         const resUrl = response.url();
 
-        if (
-          resUrl.includes("tiktok") ||
-          resUrl.includes("facebook") ||
-          resUrl.includes("instagram") ||
-          resUrl.includes("douyin")
-        ) {
+        if (resUrl.includes(".mp4")) {
           const text = await response.text();
+          const match = text.match(/https?:\/\/[^"]+\.mp4[^"]*/);
 
-          if (text.includes(".mp4")) {
-            const match = text.match(/https?:\/\/[^"]+\.mp4[^"]*/);
-
-            if (match) {
-              videoUrl = match[0];
-            }
+          if (match) {
+            videoUrl = match[0];
           }
         }
       } catch (e) {}
@@ -86,5 +76,5 @@ app.post("/api/get-video", async (req, res) => {
 });
 
 app.listen(3000, () => {
-  console.log("🚀 Server running on port 3000");
+  console.log("🚀 Server running");
 });
