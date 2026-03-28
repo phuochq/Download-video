@@ -7,7 +7,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// test server
 app.get("/", (req, res) => {
   res.send("API RUNNING OK");
 });
@@ -15,9 +14,7 @@ app.get("/", (req, res) => {
 app.post("/api/get-video", async (req, res) => {
   const url = req.body.url;
 
-  if (!url) {
-    return res.json({ error: "Thiếu URL" });
-  }
+  if (!url) return res.json({ error: "Thiếu URL" });
 
   let browser;
 
@@ -32,60 +29,19 @@ app.post("/api/get-video", async (req, res) => {
 
     let videoUrl = null;
 
-    await page.setRequestInterception(true);
-    page.on("request", (req) => {
-      if (["image", "stylesheet", "font"].includes(req.resourceType())) {
-        req.abort();
-      } else {
-        req.continue();
-      }
+    page.on("response", async (response) => {
+      try {
+        const resUrl = response.url();
+
+        if (resUrl.includes(".mp4")) {
+          videoUrl = resUrl;
+        }
+      } catch (e) {}
     });
 
-   page.on("response", async (response) => {
-  try {
-    const resUrl = response.url();
-    const headers = response.headers();
+    await page.goto(url, { waitUntil: "networkidle2" });
 
-    // ✅ bắt video qua content-type
-    if (headers["content-type"]?.includes("video")) {
-      videoUrl = resUrl;
-    }
-
-    // ✅ bắt mp4 trực tiếp
-    if (resUrl.includes(".mp4")) {
-      videoUrl = resUrl;
-    }
-
-    // ✅ bắt m3u8 (rất quan trọng)
-    if (resUrl.includes(".m3u8")) {
-      videoUrl = resUrl;
-    }
-
-    // ✅ bắt JSON chứa video
-    if (headers["content-type"]?.includes("json")) {
-      const text = await response.text();
-
-      // tìm link mp4 trong JSON
-      const match = text.match(/https?:\/\/[^"]+\.mp4/g);
-      if (match) {
-        videoUrl = match[0];
-      }
-
-      // tìm m3u8
-      const m3u8 = text.match(/https?:\/\/[^"]+\.m3u8/g);
-      if (m3u8) {
-        videoUrl = m3u8[0];
-      }
-    }
-
-  } catch (e) {}
-});
-    await page.goto(url, {
-      waitUntil: "networkidle2",
-      timeout: 0,
-    });
-
-    await new Promise((r) => setTimeout(r, 15000));
+    await new Promise(r => setTimeout(r, 10000));
 
     await browser.close();
 
@@ -94,15 +50,11 @@ app.post("/api/get-video", async (req, res) => {
     } else {
       return res.json({ error: "Không tìm thấy video" });
     }
+
   } catch (err) {
     if (browser) await browser.close();
     return res.json({ error: err.message });
   }
 });
-await page.evaluate(() => {
-  window.scrollTo(0, document.body.scrollHeight);
-});
 
-app.listen(3000, () => {
-  console.log("Server running");
-});
+app.listen(3000, () => console.log("Server running"));
