@@ -99,6 +99,9 @@ app.post("/api/get-video", async (req, res) => {
     return res.json({ error: err.message });
   }
 });
+await page.evaluate(() => {
+  window.scrollTo(0, document.body.scrollHeight);
+});
 
 app.listen(3000, () => {
   console.log("Server running");
