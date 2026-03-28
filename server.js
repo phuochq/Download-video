@@ -1,5 +1,5 @@
 import express from "express";
-import puppeteer from "puppeteer-core";
+import puppeteer from "puppeteer";
 import cors from "cors";
 
 const app = express();
@@ -12,19 +12,13 @@ app.get("/", (req, res) => {
 app.get("/api/get-video", async (req, res) => {
   const url = req.query.url;
 
-  if (!url) {
-    return res.json({ error: "Thiếu URL" });
-  }
+  if (!url) return res.json({ error: "Thiếu URL" });
 
   let browser;
 
   try {
     browser = await puppeteer.launch({
-      headless: true,
-
-      // 🔥 QUAN TRỌNG: path Chrome của Render
-      executablePath: "/usr/bin/chromium-browser",
-
+      headless: "new",
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
@@ -66,14 +60,14 @@ app.get("/api/get-video", async (req, res) => {
     await browser.close();
 
     if (videoUrl) {
-      return res.json({ video: videoUrl });
+      res.json({ video: videoUrl });
     } else {
-      return res.json({ error: "Không tìm thấy video" });
+      res.json({ error: "Không tìm thấy video" });
     }
 
   } catch (err) {
     if (browser) await browser.close();
-    return res.json({ error: err.message });
+    res.json({ error: err.message });
   }
 });
 
