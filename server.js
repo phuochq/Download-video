@@ -1,34 +1,12 @@
 import express from "express";
-import puppeteer from "puppeteer";
 import cors from "cors";
-import { execSync } from "child_process";
-import fs from "fs";
+import { chromium } from "playwright";
 
 const app = express();
 app.use(cors());
 
-// 🔥 AUTO INSTALL CHROME
-const CHROME_PATH = "/opt/render/.cache/puppeteer/chrome";
-
-function installChromeIfNeeded() {
-  try {
-    if (!fs.existsSync(CHROME_PATH)) {
-      console.log("🚀 Installing Chrome...");
-      execSync(
-        "PUPPETEER_CACHE_DIR=/opt/render/.cache/puppeteer npx puppeteer browsers install chrome",
-        { stdio: "inherit" }
-      );
-      console.log("✅ Chrome installed");
-    } else {
-      console.log("✅ Chrome already exists");
-    }
-  } catch (err) {
-    console.error("❌ Install Chrome failed:", err);
-  }
-}
-
 app.get("/", (req, res) => {
-  res.send("🚀 API OK");
+  res.send("🚀 API Playwright OK");
 });
 
 app.get("/api/get-video", async (req, res) => {
@@ -38,38 +16,24 @@ app.get("/api/get-video", async (req, res) => {
   let browser;
 
   try {
-    // 🔥 đảm bảo có Chrome trước khi chạy
-    installChromeIfNeeded();
-
-    browser = await puppeteer.launch({
-      headless: "new",
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage"
-      ]
+    browser = await chromium.launch({
+      headless: true
     });
 
     const page = await browser.newPage();
 
     let videoUrl = null;
 
-    await page.setRequestInterception(true);
-    page.on("request", (req) => {
-      if (["image", "stylesheet", "font"].includes(req.resourceType())) {
-        req.abort();
-      } else {
-        req.continue();
-      }
-    });
-
+    // 🎯 bắt response
     page.on("response", async (response) => {
       try {
         const text = await response.text();
 
         if (text.includes(".mp4")) {
           const match = text.match(/https:[^"]+\.mp4/g);
-          if (match) videoUrl = match[0];
+          if (match) {
+            videoUrl = match[0];
+          }
         }
       } catch {}
     });
@@ -79,7 +43,7 @@ app.get("/api/get-video", async (req, res) => {
       timeout: 0
     });
 
-    await new Promise((r) => setTimeout(r, 15000));
+    await page.waitForTimeout(12000);
 
     await browser.close();
 
@@ -96,5 +60,5 @@ app.get("/api/get-video", async (req, res) => {
 });
 
 app.listen(process.env.PORT || 3000, () => {
-  console.log("🚀 Server running");
+  console.log("🚀 Server Playwright running");
 });
