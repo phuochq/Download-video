@@ -41,35 +41,51 @@ app.post("/api/get-video", async (req, res) => {
       }
     });
 
-    page.on("response", async (response) => {
-      try {
-        const resUrl = response.url();
+   page.on("response", async (response) => {
+  try {
+    const resUrl = response.url();
+    const headers = response.headers();
 
-        if (
-          resUrl.includes(".mp4") ||
-          resUrl.includes("video") ||
-          resUrl.includes("play")
-        ) {
-          videoUrl = resUrl;
-        }
+    // ✅ bắt video qua content-type
+    if (headers["content-type"]?.includes("video")) {
+      videoUrl = resUrl;
+    }
 
-        if (resUrl.includes("json")) {
-          const text = await response.text();
+    // ✅ bắt mp4 trực tiếp
+    if (resUrl.includes(".mp4")) {
+      videoUrl = resUrl;
+    }
 
-          if (text.includes(".mp4")) {
-            const match = text.match(/https?:\/\/.*?\.mp4/g);
-            if (match) videoUrl = match[0];
-          }
-        }
-      } catch (e) {}
-    });
+    // ✅ bắt m3u8 (rất quan trọng)
+    if (resUrl.includes(".m3u8")) {
+      videoUrl = resUrl;
+    }
 
+    // ✅ bắt JSON chứa video
+    if (headers["content-type"]?.includes("json")) {
+      const text = await response.text();
+
+      // tìm link mp4 trong JSON
+      const match = text.match(/https?:\/\/[^"]+\.mp4/g);
+      if (match) {
+        videoUrl = match[0];
+      }
+
+      // tìm m3u8
+      const m3u8 = text.match(/https?:\/\/[^"]+\.m3u8/g);
+      if (m3u8) {
+        videoUrl = m3u8[0];
+      }
+    }
+
+  } catch (e) {}
+});
     await page.goto(url, {
       waitUntil: "networkidle2",
       timeout: 0,
     });
 
-    await new Promise((r) => setTimeout(r, 8000));
+    await new Promise((r) => setTimeout(r, 15000));
 
     await browser.close();
 
