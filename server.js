@@ -1,6 +1,5 @@
 const express = require("express");
 const cors = require("cors");
-const axios = require("axios");
 
 const puppeteer = require("puppeteer-core");
 const chromium = require("@sparticuz/chromium");
@@ -13,11 +12,11 @@ app.use(express.json());
    ROOT CHECK
 ========================= */
 app.get("/", (req, res) => {
-  res.send("✅ Jimeng Puppeteer API is running");
+  res.send("✅ Jimeng Video Parser API is running");
 });
 
 /* =========================
-   GET VIDEO URL (JIMENG)
+   PARSE VIDEO LINK
 ========================= */
 app.post("/api/get-video", async (req, res) => {
   const url = req.body?.url;
@@ -27,8 +26,6 @@ app.post("/api/get-video", async (req, res) => {
 
   let browser;
   let videoUrl = null;
-
-  console.log("🔗 Request url:", url);
 
   try {
     browser = await puppeteer.launch({
@@ -44,12 +41,11 @@ app.post("/api/get-video", async (req, res) => {
 
     const page = await browser.newPage();
 
-    /* ====== GIẢ LẬP TRÌNH DUYỆT THẬT ====== */
+    /* === GIẢ LẬP TRÌNH DUYỆT NGƯỜI DÙNG === */
     await page.setUserAgent(
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
       "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
     );
-
     await page.setViewport({ width: 1366, height: 768 });
 
     await page.evaluateOnNewDocument(() => {
@@ -58,21 +54,21 @@ app.post("/api/get-video", async (req, res) => {
       });
     });
 
-    /* ====== GIẢM REQUEST KHÔNG CẦN THIẾT ====== */
+    /* === CHẶN RESOURCE KHÔNG CẦN === */
     await page.setRequestInterception(true);
     page.on("request", r => {
       const type = r.resourceType();
-      if (["image", "font", "stylesheet"].includes(type)) r.abort();
+      if (["image", "stylesheet", "font"].includes(type)) r.abort();
       else r.continue();
     });
 
-    /* ====== BẮT API RESPONSE ====== */
+    /* === BẮT API TRẢ VIDEO URL === */
     page.on("response", async response => {
       try {
         if (videoUrl) return;
 
         const resUrl = response.url();
-        if (!resUrl.includes("jianying") && !resUrl.includes("jimeng")) return;
+        if (!resUrl.includes("jimeng") && !resUrl.includes("jianying")) return;
 
         const text = await response.text();
         if (!text || !text.includes("download_info")) return;
@@ -84,30 +80,26 @@ app.post("/api/get-video", async (req, res) => {
 
         if (creation?.metadata?.download_info?.url) {
           videoUrl = creation.metadata.download_info.url;
-          console.log("✅ Found video (creation)");
         }
 
         if (!videoUrl && Array.isArray(list)) {
           for (const item of list) {
             if (item?.metadata?.download_info?.url) {
               videoUrl = item.metadata.download_info.url;
-              console.log("✅ Found video (list)");
               break;
             }
           }
         }
-      } catch (e) {
-        // ignore parse errors
-      }
+      } catch {}
     });
 
-    /* ====== LOAD PAGE (KHÔNG DÙNG networkidle2) ====== */
+    /* === LOAD TRANG === */
     await page.goto(url, {
       waitUntil: "domcontentloaded",
       timeout: 25000
     });
 
-    /* ====== ĐỢI VIDEO URL (TỐI ĐA 20s) ====== */
+    /* === ĐỢI TỐI ĐA 20s === */
     const start = Date.now();
     while (!videoUrl && Date.now() - start < 20000) {
       await new Promise(r => setTimeout(r, 1000));
@@ -116,49 +108,18 @@ app.post("/api/get-video", async (req, res) => {
     await browser.close();
 
     if (videoUrl) {
-      return res.json({ video: videoUrl });
-    } else {
       return res.json({
-        error: "Không lấy được video (bị block hoặc API không xuất hiện)"
+        video: videoUrl
       });
     }
 
-  } catch (err) {
-    console.error("❌ Puppeteer error:", err.message);
-    if (browser) await browser.close();
-    return res.json({ error: err.message });
-  }
-});
-
-/* =========================
-   STREAM DOWNLOAD
-========================= */
-app.get("/api/download", async (req, res) => {
-  const videoUrl = req.query?.url;
-  if (!videoUrl) {
-    return res.status(400).send("Thiếu URL");
-  }
-
-  try {
-    const response = await axios({
-      url: videoUrl,
-      method: "GET",
-      responseType: "stream",
-      headers: {
-        "User-Agent": "Mozilla/5.0"
-      }
+    return res.json({
+      error: "Không lấy được link MP4 (bị block hoặc API không xuất hiện)"
     });
 
-    res.setHeader(
-      "Content-Disposition",
-      "attachment; filename=jimeng-video.mp4"
-    );
-
-    response.data.pipe(res);
-
   } catch (err) {
-    console.error("❌ Download error");
-    res.status(500).send("Download lỗi");
+    if (browser) await browser.close();
+    res.json({ error: err.message });
   }
 });
 
@@ -169,4 +130,3 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("🚀 Server running on port", PORT);
 });
-``
