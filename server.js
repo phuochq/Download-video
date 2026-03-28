@@ -1,80 +1,115 @@
 const express = require("express");
-const puppeteer = require("puppeteer-core");
-const chromium = require("@sparticuz/chromium");
 const cors = require("cors");
 const axios = require("axios");
 
+const puppeteer = require("puppeteer-core");
+const chromium = require("@sparticuz/chromium");
+
 const app = express();
-
-app.use(cors({
-  origin: ["https://openvnn.com"]
-}));
-
+app.use(cors());
 app.use(express.json());
 
+/* =========================
+   ROOT CHECK
+========================= */
 app.get("/", (req, res) => {
-  res.send("API Puppeteer đang chạy OK");
+  res.send("✅ Jimeng Puppeteer API is running");
 });
 
+/* =========================
+   GET VIDEO URL (JIMENG)
+========================= */
 app.post("/api/get-video", async (req, res) => {
-  const url = req.body.url;
-  if (!url) return res.json({ error: "Thiếu URL" });
+  const url = req.body?.url;
+  if (!url) {
+    return res.json({ error: "Thiếu URL" });
+  }
 
   let browser;
   let videoUrl = null;
 
+  console.log("🔗 Request url:", url);
+
   try {
     browser = await puppeteer.launch({
-      args: chromium.args,
+      args: [
+        ...chromium.args,
+        "--disable-blink-features=AutomationControlled",
+        "--no-sandbox",
+        "--disable-setuid-sandbox"
+      ],
       executablePath: await chromium.executablePath(),
       headless: chromium.headless
     });
 
     const page = await browser.newPage();
 
-    await page.setRequestInterception(true);
-    page.on("request", req => {
-      const type = req.resourceType();
-      if (["image", "stylesheet", "font"].includes(type)) {
-        req.abort();
-      } else {
-        req.continue();
-      }
+    /* ====== GIẢ LẬP TRÌNH DUYỆT THẬT ====== */
+    await page.setUserAgent(
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+      "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+    );
+
+    await page.setViewport({ width: 1366, height: 768 });
+
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, "webdriver", {
+        get: () => undefined
+      });
     });
 
+    /* ====== GIẢM REQUEST KHÔNG CẦN THIẾT ====== */
+    await page.setRequestInterception(true);
+    page.on("request", r => {
+      const type = r.resourceType();
+      if (["image", "font", "stylesheet"].includes(type)) r.abort();
+      else r.continue();
+    });
+
+    /* ====== BẮT API RESPONSE ====== */
     page.on("response", async response => {
       try {
+        if (videoUrl) return;
+
         const resUrl = response.url();
-        if (resUrl.includes("jimeng") || resUrl.includes("jianying")) {
-          const text = await response.text();
-          if (text.includes("download_info")) {
-            const json = JSON.parse(text);
-            const creation = json?.data?.page_info?.creation;
-            const list = json?.data?.page_info?.creation_list;
+        if (!resUrl.includes("jianying") && !resUrl.includes("jimeng")) return;
 
-            if (creation?.metadata?.download_info?.url) {
-              videoUrl = creation.metadata.download_info.url;
-            }
+        const text = await response.text();
+        if (!text || !text.includes("download_info")) return;
 
-            if (!videoUrl && Array.isArray(list)) {
-              for (const item of list) {
-                if (item?.metadata?.download_info?.url) {
-                  videoUrl = item.metadata.download_info.url;
-                  break;
-                }
-              }
+        const json = JSON.parse(text);
+
+        const creation = json?.data?.page_info?.creation;
+        const list = json?.data?.page_info?.creation_list;
+
+        if (creation?.metadata?.download_info?.url) {
+          videoUrl = creation.metadata.download_info.url;
+          console.log("✅ Found video (creation)");
+        }
+
+        if (!videoUrl && Array.isArray(list)) {
+          for (const item of list) {
+            if (item?.metadata?.download_info?.url) {
+              videoUrl = item.metadata.download_info.url;
+              console.log("✅ Found video (list)");
+              break;
             }
           }
         }
-      } catch {}
+      } catch (e) {
+        // ignore parse errors
+      }
     });
 
+    /* ====== LOAD PAGE (KHÔNG DÙNG networkidle2) ====== */
     await page.goto(url, {
-      waitUntil: "networkidle2",
-      timeout: 30000
+      waitUntil: "domcontentloaded",
+      timeout: 25000
     });
 
-    for (let i = 0; i < 10 && !videoUrl; i++) {
+    /* ====== ĐỢI VIDEO URL (TỐI ĐA 20s) ====== */
+    const start = Date.now();
+    while (!videoUrl && Date.now() - start < 20000) {
       await new Promise(r => setTimeout(r, 1000));
     }
 
@@ -83,34 +118,55 @@ app.post("/api/get-video", async (req, res) => {
     if (videoUrl) {
       return res.json({ video: videoUrl });
     } else {
-      return res.json({ error: "Không tìm thấy video" });
+      return res.json({
+        error: "Không lấy được video (bị block hoặc API không xuất hiện)"
+      });
     }
 
   } catch (err) {
+    console.error("❌ Puppeteer error:", err.message);
     if (browser) await browser.close();
     return res.json({ error: err.message });
   }
 });
 
+/* =========================
+   STREAM DOWNLOAD
+========================= */
 app.get("/api/download", async (req, res) => {
-  const videoUrl = req.query.url;
+  const videoUrl = req.query?.url;
+  if (!videoUrl) {
+    return res.status(400).send("Thiếu URL");
+  }
+
   try {
     const response = await axios({
       url: videoUrl,
       method: "GET",
       responseType: "stream",
-      headers: { "User-Agent": "Mozilla/5.0" }
+      headers: {
+        "User-Agent": "Mozilla/5.0"
+      }
     });
 
-    res.setHeader("Content-Disposition", "attachment; filename=video.mp4");
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=jimeng-video.mp4"
+    );
+
     response.data.pipe(res);
 
-  } catch {
+  } catch (err) {
+    console.error("❌ Download error");
     res.status(500).send("Download lỗi");
   }
 });
 
+/* =========================
+   START SERVER
+========================= */
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log("Server running on port " + PORT);
+  console.log("🚀 Server running on port", PORT);
 });
+``
