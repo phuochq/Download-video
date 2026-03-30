@@ -4,13 +4,11 @@ const ytdlp = require("yt-dlp-exec");
 
 const app = express();
 
-// ✅ FIX CORS TRIỆT ĐỂ
 app.use(cors({
   origin: "*",
   methods: ["GET"]
 }));
 
-// test API
 app.get("/", (req, res) => {
   res.send("🚀 API Video Downloader PRO đang chạy");
 });
@@ -27,28 +25,36 @@ app.get("/api/get-video", async (req, res) => {
       dumpSingleJson: true,
       noWarnings: true,
       preferFreeFormats: true,
-      format: "best"
+      format: "bv*+ba/b",
+      userAgent: "Mozilla/5.0"
     });
 
-    // 🎯 lấy video ngon nhất
-    let video =
-      info.url ||
-      (info.formats &&
-        info.formats.find(f => f.ext === "mp4" && f.vcodec !== "none")?.url);
+    const formats = info.formats || [];
 
-    if (!video) {
-      return res.json({ error: "Không tìm thấy video" });
+    const mp4Formats = formats.filter(f =>
+      f.ext === "mp4" &&
+      f.vcodec !== "none" &&
+      f.url
+    );
+
+    mp4Formats.sort((a, b) => (b.height || 0) - (a.height || 0));
+
+    const best = mp4Formats[0];
+
+    if (!best) {
+      return res.json({ error: "Không tìm thấy video mp4" });
     }
 
     res.json({
       platform: info.extractor,
       title: info.title,
       thumbnail: info.thumbnail,
-      video: video
+      video: best.url
     });
 
   } catch (err) {
-    res.json({ error: "Không hỗ trợ link này" });
+    console.error(err);
+    res.json({ error: "Không hỗ trợ link này hoặc bị chặn" });
   }
 });
 
