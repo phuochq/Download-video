@@ -4,79 +4,53 @@ const ytdlp = require("yt-dlp-exec");
 
 const app = express();
 
+// ✅ FIX CORS TRIỆT ĐỂ
 app.use(cors({
   origin: "*",
-  methods: ["GET", "POST"],
-  allowedHeaders: ["Content-Type"]
+  methods: ["GET"]
 }));
 
-app.use(express.json());
-
+// test API
 app.get("/", (req, res) => {
-  res.send("🚀 API Downloader PRO (No Puppeteer)");
+  res.send("🚀 API Video Downloader PRO đang chạy");
 });
 
-// 🎯 detect nền tảng
-function detectPlatform(url) {
-  if (url.includes("tiktok")) return "tiktok";
-  if (url.includes("facebook")) return "facebook";
-  if (url.includes("instagram")) return "instagram";
-  if (url.includes("youtube")) return "youtube";
-  return "unknown";
-}
-
-app.post("/api/get-video", async (req, res) => {
-  const { url } = req.body;
+app.get("/api/get-video", async (req, res) => {
+  const url = req.query.url;
 
   if (!url) {
     return res.json({ error: "Thiếu URL" });
   }
 
   try {
-    const platform = detectPlatform(url);
-
-    const result = await ytdlp(url, {
+    const info = await ytdlp(url, {
       dumpSingleJson: true,
       noWarnings: true,
-      noCallHome: true,
       preferFreeFormats: true,
       format: "best"
     });
 
-    let videoUrl = null;
+    // 🎯 lấy video ngon nhất
+    let video =
+      info.url ||
+      (info.formats &&
+        info.formats.find(f => f.ext === "mp4" && f.vcodec !== "none")?.url);
 
-    // 🎯 ưu tiên format mp4
-    if (result?.formats) {
-      const mp4 = result.formats
-        .filter(f => f.ext === "mp4" && f.url)
-        .sort((a, b) => (b.height || 0) - (a.height || 0));
-
-      if (mp4.length > 0) {
-        videoUrl = mp4[0].url;
-      }
-    }
-
-    // fallback
-    if (!videoUrl && result.url) {
-      videoUrl = result.url;
-    }
-
-    if (!videoUrl) {
+    if (!video) {
       return res.json({ error: "Không tìm thấy video" });
     }
 
-    return res.json({
-      platform,
-      video: videoUrl,
-      title: result.title || "",
-      thumbnail: result.thumbnail || ""
+    res.json({
+      platform: info.extractor,
+      title: info.title,
+      thumbnail: info.thumbnail,
+      video: video
     });
 
   } catch (err) {
-    return res.json({ error: err.message });
+    res.json({ error: "Không hỗ trợ link này" });
   }
 });
 
-app.listen(3000, () => {
-  console.log("🚀 Server PRO running");
-});
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log("🚀 Server running"));
