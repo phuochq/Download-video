@@ -1,6 +1,6 @@
 const express = require("express");
-const puppeteer = require("puppeteer");
 const cors = require("cors");
+const ytdlp = require("yt-dlp-exec");
 
 const app = express();
 
@@ -9,96 +9,74 @@ app.use(cors({
   methods: ["GET", "POST"],
   allowedHeaders: ["Content-Type"]
 }));
-// 🔥 AUTO INSTALL CHROME
-const CHROME_PATH = "/opt/render/.cache/puppeteer/chrome";
-
-function installChromeIfNeeded() {
-  try {
-    if (!fs.existsSync(CHROME_PATH)) {
-      console.log("🚀 Installing Chrome...");
-      execSync(
-        "PUPPETEER_CACHE_DIR=/opt/render/.cache/puppeteer npx puppeteer browsers install chrome",
-        { stdio: "inherit" }
-      );
-      console.log("✅ Chrome installed");
-    } else {
-      console.log("✅ Chrome already exists");
-    }
-  } catch (err) {
-    console.error("❌ Install Chrome failed:", err);
-  }
-}
 
 app.use(express.json());
+
 app.get("/", (req, res) => {
-  res.send("🚀 API Downloader PRO đang chạy");
+  res.send("🚀 API Downloader PRO (No Puppeteer)");
 });
 
+// 🎯 detect nền tảng
+function detectPlatform(url) {
+  if (url.includes("tiktok")) return "tiktok";
+  if (url.includes("facebook")) return "facebook";
+  if (url.includes("instagram")) return "instagram";
+  if (url.includes("youtube")) return "youtube";
+  return "unknown";
+}
+
 app.post("/api/get-video", async (req, res) => {
-  const url = req.body.url;
+  const { url } = req.body;
 
   if (!url) {
     return res.json({ error: "Thiếu URL" });
   }
 
-  let browser;
-
   try {
-    browser = await puppeteer.launch({
-      headless: "new",
-      args: ["--no-sandbox", "--disable-setuid-sandbox"]
-    });
+    const platform = detectPlatform(url);
 
-    const page = await browser.newPage();
+    const result = await ytdlp(url, {
+      dumpSingleJson: true,
+      noWarnings: true,
+      noCallHome: true,
+      preferFreeFormats: true,
+      format: "best"
+    });
 
     let videoUrl = null;
 
-    await page.setRequestInterception(true);
-    page.on("request", (req) => {
-      const type = req.resourceType();
-      if (["image", "stylesheet", "font"].includes(type)) {
-        req.abort();
-      } else {
-        req.continue();
+    // 🎯 ưu tiên format mp4
+    if (result?.formats) {
+      const mp4 = result.formats
+        .filter(f => f.ext === "mp4" && f.url)
+        .sort((a, b) => (b.height || 0) - (a.height || 0));
+
+      if (mp4.length > 0) {
+        videoUrl = mp4[0].url;
       }
-    });
+    }
 
-    page.on("response", async (response) => {
-      try {
-        const resUrl = response.url();
+    // fallback
+    if (!videoUrl && result.url) {
+      videoUrl = result.url;
+    }
 
-        if (resUrl.includes(".mp4")) {
-          const text = await response.text();
-          const match = text.match(/https?:\/\/[^"]+\.mp4[^"]*/);
-
-          if (match) {
-            videoUrl = match[0];
-          }
-        }
-      } catch (e) {}
-    });
-
-    await page.goto(url, {
-      waitUntil: "networkidle2",
-      timeout: 0
-    });
-
-    await new Promise(r => setTimeout(r, 8000));
-
-    await browser.close();
-
-    if (videoUrl) {
-      return res.json({ video: videoUrl });
-    } else {
+    if (!videoUrl) {
       return res.json({ error: "Không tìm thấy video" });
     }
 
+    return res.json({
+      platform,
+      video: videoUrl,
+      title: result.title || "",
+      thumbnail: result.thumbnail || ""
+    });
+
   } catch (err) {
-    if (browser) await browser.close();
     return res.json({ error: err.message });
   }
 });
 
 app.listen(3000, () => {
-  console.log("🚀 Server running");
+  console.log("🚀 Server PRO running");
 });
