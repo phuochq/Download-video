@@ -1,16 +1,14 @@
 {
   "name": "video-downloader-pro",
   "version": "1.0.0",
-  "description": "Multi platform downloader API",
   "main": "server.js",
   "type": "commonjs",
   "scripts": {
-    "start": "node server.js",
-    "postinstall": "PUPPETEER_CACHE_DIR=/opt/render/.cache/puppeteer npx puppeteer browsers install chrome"
+    "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "puppeteer": "^22.0.0",
-    "cors": "^2.8.5"
+    "cors": "^2.8.5",
+    "yt-dlp-exec": "^2.3.0"
   }
 }
