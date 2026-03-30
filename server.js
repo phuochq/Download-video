@@ -9,6 +9,25 @@ app.use(cors({
   methods: ["GET", "POST"],
   allowedHeaders: ["Content-Type"]
 }));
+// 🔥 AUTO INSTALL CHROME
+const CHROME_PATH = "/opt/render/.cache/puppeteer/chrome";
+
+function installChromeIfNeeded() {
+  try {
+    if (!fs.existsSync(CHROME_PATH)) {
+      console.log("🚀 Installing Chrome...");
+      execSync(
+        "PUPPETEER_CACHE_DIR=/opt/render/.cache/puppeteer npx puppeteer browsers install chrome",
+        { stdio: "inherit" }
+      );
+      console.log("✅ Chrome installed");
+    } else {
+      console.log("✅ Chrome already exists");
+    }
+  } catch (err) {
+    console.error("❌ Install Chrome failed:", err);
+  }
+}
 
 app.use(express.json());
 app.get("/", (req, res) => {
