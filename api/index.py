@@ -3,53 +3,61 @@ from flask_cors import CORS
 import yt_dlp
 
 app = Flask(__name__)
-# Cho phép cả có www và không có www
 allowed_origins = ["https://www.openvnn.com", "https://openvnn.com"]
 CORS(app, resources={r"/api/*": {"origins": allowed_origins}})
 
-@app.route('/api', methods=['GET', 'POST', 'OPTIONS'])
-def download():
-    # 1. Xử lý Preflight Request (OPTIONS) thủ công
+@app.route('/api', methods=['GET', 'OPTIONS'])
+def handler():
     if request.method == 'OPTIONS':
-        origin = request.headers.get('Origin')
-        response = make_response()
-        if origin in allowed_origins:
-            response.headers.add("Access-Control-Allow-Origin", origin)
-        response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
-        response.headers.add("Access-Control-Allow-Methods", "GET,OPTIONS")
-        return response
+        return _build_cors_preflight_response()
 
-    # 2. Lấy dữ liệu Video
     video_url = request.args.get('url')
     if not video_url:
-        return jsonify({"error": "No URL provided"}), 400
+        return _corsify_actual_response(jsonify({"error": "No URL"}), 400)
 
+    # Cấu hình lấy đầy đủ thông tin định dạng
     ydl_opts = {
-        'format': 'best',
         'quiet': True,
         'no_warnings': True,
         'noplaylist': True,
+        'format': 'best' 
     }
-
+    
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(video_url, download=False)
             
-            # 3. Tạo Response thành công và chèn Header CORS thủ công
-            result = {
+            # Lọc các định dạng video có cả hình và tiếng (hoặc mp4)
+            formats = []
+            for f in info.get('formats', []):
+                # Chỉ lấy các định dạng có link trực tiếp và là video+audio (ext là mp4)
+                if f.get('url') and f.get('vcodec') != 'none' and f.get('acodec') != 'none':
+                    formats.append({
+                        "quality": f.get('format_note') or f.get('resolution') or "Chất lượng thường",
+                        "ext": f.get('ext'),
+                        "url": f.get('url')
+                    })
+
+            # Lấy thêm 1 bản Audio MP3 nếu có
+            audio = next((f['url'] for f in info['formats'] if f.get('acodec') != 'none' and f.get('vcodec') == 'none'), None)
+
+            data = {
                 "title": info.get('title'),
                 "thumbnail": info.get('thumbnail'),
-                "video_url": info.get('url')
+                "formats": formats[:5], # Lấy 5 định dạng tốt nhất để tránh rối
+                "audio": audio
             }
-            res = make_response(jsonify(result))
-            origin = request.headers.get('Origin')
-            if origin in allowed_origins:
-                res.headers.add("Access-Control-Allow-Origin", origin)
-            return res
-
+            return _corsify_actual_response(jsonify(data))
     except Exception as e:
-        error_res = make_response(jsonify({"error": str(e)}), 500)
-        origin = request.headers.get('Origin')
-        if origin in allowed_origins:
-            error_res.headers.add("Access-Control-Allow-Origin", origin)
-        return error_res
+        return _corsify_actual_response(jsonify({"error": str(e)}), 500)
+
+def _build_cors_preflight_response():
+    res = make_response()
+    res.headers.add("Access-Control-Allow-Origin", "https://www.openvnn.com")
+    res.headers.add("Access-Control-Allow-Headers", "*")
+    res.headers.add("Access-Control-Allow-Methods", "GET, OPTIONS")
+    return res, 204
+
+def _corsify_actual_response(response, status=200):
+    response.headers.add("Access-Control-Allow-Origin", "https://www.openvnn.com")
+    return response, status
