@@ -3,7 +3,17 @@ from flask_cors import CORS
 import yt_dlp
 
 app = Flask(__name__)
-CORS(app) # Cho phép Blogspot truy cập vào API này
+# Cấu hình CORS chỉ cho phép duy nhất miền của bạn
+CORS(app, resources={
+    r"/api/*": {
+        "origins": [
+            "https://www.openvnn.com",
+            "https://openvnn.com"
+        ],
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"]
+    }
+})
 
 @app.route('/api', methods=['GET'])
 def download():
