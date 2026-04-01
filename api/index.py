@@ -11,7 +11,16 @@ def download():
     if not video_url:
         return jsonify({"error": "No URL provided"}), 400
 
-    ydl_opts = {'quiet': True, 'noplaylist': True}
+    ydl_opts = {
+    'format': 'best[ext=mp4]/best', # Ưu tiên lấy file mp4 đã có sẵn cả hình và tiếng
+    'quiet': True,
+    'noplaylist': True,
+    'extract_flat': False,
+    # Thêm dòng này để bỏ qua các lỗi không quá nghiêm trọng
+    'ignoreerrors': True, 
+    # Ép buộc yt-dlp không cố gắng giải mã các chữ ký quá phức tạp nếu không có JS runtime
+    'youtube_include_dash_manifest': False, 
+}
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         try:
             info = ydl.extract_info(video_url, download=False)
