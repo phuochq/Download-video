@@ -7,7 +7,7 @@ app = Flask(__name__)
 allowed_origins = ["https://www.openvnn.com", "https://openvnn.com"]
 CORS(app, resources={r"/api/*": {"origins": allowed_origins}})
 
-@app.route('/api', methods=['GET', 'OPTIONS'])
+@app.route('/api', methods=['GET', 'POST', 'OPTIONS'])
 def download():
     # 1. Xử lý Preflight Request (OPTIONS) thủ công
     if request.method == 'OPTIONS':
