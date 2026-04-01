@@ -3,17 +3,8 @@ from flask_cors import CORS
 import yt_dlp
 
 app = Flask(__name__)
-# Cấu hình CORS chỉ cho phép duy nhất miền của bạn
-CORS(app, resources={
-    r"/api/*": {
-        "origins": [
-            "https://www.openvnn.com",
-            "https://openvnn.com"
-        ],
-        "methods": ["GET", "POST", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization"]
-    }
-})
+# Cấu hình CORS để cho phép TẤT CẢ các nguồn truy cập
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 @app.route('/api', methods=['GET'])
 def download():
