@@ -34,13 +34,13 @@ ydl_opts = {
             formats = []
             
             # TikTok/Douyin thường trả về 1 link trực tiếp tốt nhất (No Watermark)
-            if 'tiktok' in video_url or 'douyin' in video_url:
-                formats.append({
-                    "quality": "HD No Watermark",
-                    "ext": "mp4",
-                    "url": info.get('url')
-                })
-            else:
+         if 'jianying' in video_url or 'jimeng' in video_url or 'tiktok' in video_url:
+            formats.append({
+                "quality": "Original AI Video (No Logo)",
+                "ext": "mp4",
+                "url": info.get('url')
+            })
+         else:
                 # Các nền tảng khác: Lấy danh sách định dạng như cũ
                 for f in info.get('formats', []):
                     if f.get('url') and f.get('vcodec') != 'none' and f.get('acodec') != 'none':
