@@ -16,14 +16,15 @@ def handler():
         return _corsify_actual_response(jsonify({"error": "No URL"}), 400)
 
     # Cấu hình tối ưu cho đa nền tảng
-    ydl_opts = {
-        'quiet': True,
-        'no_warnings': True,
-        'noplaylist': True,
-        # Ưu tiên lấy video chất lượng tốt nhất có sẵn (thường không logo với TikTok/Douyin)
-        'format': 'bestvideo+bestaudio/best', 
-        'check_formats': True
-    }
+ydl_opts = {
+    'quiet': True,
+    'no_warnings': True,
+    'noplaylist': True,
+    'format': 'best',
+    # Giả lập User-Agent của Chrome trên điện thoại để Jimeng nhả link
+    'user_agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
+    'extract_flat': False,
+}
     
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
