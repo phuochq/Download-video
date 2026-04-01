@@ -1,38 +1,40 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, make_response
 from flask_cors import CORS
 import yt_dlp
 
 app = Flask(__name__)
-# Cấu hình CORS để cho phép TẤT CẢ các nguồn truy cập
-CORS(app, resources={r"/api/*": {"origins": "*"}})
 
-@app.route('/api', methods=['GET'])
+# Cấu hình CORS chặt chẽ cho miền của bạn
+CORS(app, resources={r"/api/*": {"origins": ["https://www.openvnn.com", "https://openvnn.com"]}})
+
+@app.route('/api', methods=['GET', 'OPTIONS'])
 def download():
+    # Xử lý Preflight request (OPTIONS)
+    if request.method == 'OPTIONS':
+        response = make_response()
+        response.headers.add("Access-Control-Allow-Origin", "https://www.openvnn.com")
+        response.headers.add("Access-Control-Allow-Headers", "*")
+        response.headers.add("Access-Control-Allow-Methods", "*")
+        return response
+
     video_url = request.args.get('url')
     if not video_url:
         return jsonify({"error": "No URL provided"}), 400
 
     ydl_opts = {
-    'format': 'best[ext=mp4]/best', # Ưu tiên lấy file mp4 đã có sẵn cả hình và tiếng
-    'quiet': True,
-    'noplaylist': True,
-    'extract_flat': False,
-    # Thêm dòng này để bỏ qua các lỗi không quá nghiêm trọng
-    'ignoreerrors': True, 
-    # Ép buộc yt-dlp không cố gắng giải mã các chữ ký quá phức tạp nếu không có JS runtime
-    'youtube_include_dash_manifest': False, 
-}
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        try:
+        'format': 'best',
+        'quiet': True,
+        'no_warnings': True,
+        'noplaylist': True,
+    }
+
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(video_url, download=False)
             return jsonify({
                 "title": info.get('title'),
                 "thumbnail": info.get('thumbnail'),
-                "video_url": info.get('url'), # Link tải trực tiếp
-                "formats": [{"quality": f.get('format_note'), "url": f.get('url')} for f in info.get('formats') if f.get('vcodec') != 'none']
+                "video_url": info.get('url')
             })
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-
-if __name__ == '__main__':
-    app.run()
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
