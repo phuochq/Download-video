@@ -21,12 +21,10 @@ ydl_opts = {
     'no_warnings': True,
     'noplaylist': True,
     'format': 'best',
+    'source_address': '0.0.0.0',
     # Giả lập iPhone để Jimeng không chặn
-    'user_agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
-    # Thêm các header bổ sung để vượt qua tường lửa của ByteDance
-    'http_headers': {
-        'Referer': 'https://jimeng.jianying.com/',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+'http_headers': {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     },
     'ignoreerrors': True,
 }
