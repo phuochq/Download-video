@@ -25,10 +25,15 @@ ydl_opts = {
     'nocheckcertificate': True,
     'geo_bypass': True,
     # Giả lập iPhone để Jimeng không chặn
-'http_headers': {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+'user_agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36',
+    'http_headers': {
+        'Accept': '*/*',
+        'Accept-Language': 'vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Referer': 'https://www.tiktok.com/',
+        'Referer': 'https://www.facebook.com/',
+        'Referer': 'https://jimeng.jianying.com/',
     },
-    'ignoreerrors': True,
+    'extract_flat': False,
 }
     
     try:
